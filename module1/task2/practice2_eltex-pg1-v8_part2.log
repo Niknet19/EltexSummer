@@ -1,0 +1,31 @@
+1.
+journalctl -b --since="$(journalctl -b | grep 'Startup finished in' | head -1 | awk '{print $1" "$2" "$3}')" --until="+20 seconds"
+
+2.find /var/log -name auth.log -exec awk '{print $3}' {} \; | sed -E 's/(\[?[0-9]+\]?)://g' | sort | uniq
+
+
+CRON
+chage
+sshd
+su
+sudo:
+systemd-logind
+
+3.find /var/log -name auth.log -exec awk '{print $3}' {} \; | sed -E 's/(\[?[0-9]+\]?)://g' | sort | uniq -c | sort -r
+    552 CRON
+      2 chage
+      3 sshd
+     97 su
+     39 sudo:
+      1 systemd-logind
+
+4. awk -F: '$7=="/usr/sbin/nologin" {print $3";"$1}' /etc/passwd | sort -k1 -nr | while IFS=';' read -r uid user; do
+    groups=$(grep -E ".*:.*:.*:.*${user}.*" /etc/group | awk -F: '{print $1}' | tr '\n' ',' | sed 's/,$//')
+    echo "$uid;$user;$groups"
+done
+
+5. dmesg | grep -i 'kernel'
+
+6.cat /var/log/kern.log | wc -l
+
+7. awk '/^Commandline:/ {cmd=$0} /^Start-Date:/ {start=$0} /^End-Date:/ {end=$0; print cmd "; " start "; " end}' /var/log/apt/history.log
