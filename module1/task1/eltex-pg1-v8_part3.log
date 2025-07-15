@@ -1,0 +1,96 @@
+1.Перейдите в домашний каталог, создайте файл $USER_part3.log. Используемые в разделе 3
+команды дописывайте в файл командой echo, не забудьте про экранирование.
+Создайте иерархию вложенных каталогов D1/D2/D3.
+mkdir -p D1/D2/D3/
+2.В каталоге D2 создайте обычный пустой файл file.txt.
+cd D1/D2/
+touch file.txt
+3.Добавьте произвольный текст в файл file.txt.
+echo "some text" >> file.txt
+4.В каталоге D3 создайте символическую и жесткие ссылки на file.txt.
+cd D3/
+ln hardlink
+ln -s softlink
+5.Докажите, что ссылки созданы успешно.
+stat file.txt D3/hardlink D3/softlink
+
+  File: file.txt
+  Size: 10        	Blocks: 8          IO Block: 4096   regular file
+Device: 254,2	Inode: 393242      Links: 2
+Access: (0644/-rw-r--r--)  Uid: ( 1069/eltex-pg1-v8)   Gid: ( 1069/eltex-pg1-v8)
+Access: 2025-07-10 20:37:11.617244495 +0700
+Modify: 2025-07-10 20:37:08.213186071 +0700
+Change: 2025-07-10 20:40:46.780940926 +0700
+ Birth: 2025-07-10 20:35:17.567288300 +0700
+  File: D3/hardlink
+  Size: 10        	Blocks: 8          IO Block: 4096   regular file
+Device: 254,2	Inode: 393242      Links: 2
+Access: (0644/-rw-r--r--)  Uid: ( 1069/eltex-pg1-v8)   Gid: ( 1069/eltex-pg1-v8)
+Access: 2025-07-10 20:37:11.617244495 +0700
+Modify: 2025-07-10 20:37:08.213186071 +0700
+Change: 2025-07-10 20:40:46.780940926 +0700
+ Birth: 2025-07-10 20:35:17.567288300 +0700
+  File: D3/softlink -> ../file.txt
+  Size: 11        	Blocks: 0          IO Block: 4096   symbolic link
+Device: 254,2	Inode: 393276      Links: 1
+Access: (0777/lrwxrwxrwx)  Uid: ( 1069/eltex-pg1-v8)   Gid: ( 1069/eltex-pg1-v8)
+Access: 2025-07-10 20:43:13.279460980 +0700
+Modify: 2025-07-10 20:41:13.309397099 +0700
+Change: 2025-07-10 20:41:13.309397099 +0700
+ Birth: 2025-07-10 20:41:13.309397099 +0700
+
+
+Жесткая ссылка имеет одинаковый inode с файлом(393242), а символическая ссылка другой inode (393276)
+
+cat hardlink
+cat softlink
+
+some text
+some text
+7. Переместите файл file.txt в каталог D1.
+mv ../file.txt ../../
+
+8.Проверьте работу ранее созданных ссылок на файл file.txt. Какая ссылка оказалась рабочей и
+почему?
+cat hardlink
+some text
+cat softlink
+cat: softlink: No such file or directory
+
+Символическая ссылка сломалась потому что путь до файла изменился
+
+9.Удалите каталог D2 со всем содержимым.
+rm -rf D2/
+
+10. Найдите все файлы в системе размером больше 20МБ. Убедитесь в том (du), что найденные
+файлы имеют нужный размер. Запишите в файл $USER_part3_gt50M.log список найденных
+файлов.
+find / -type f -size +20M -exec du -h {} + 2> /dev/null | sort -r  > "${USER}_part3_gt50M.log"
+
+11.В домашнем каталоге и его подкаталогах найдите обычные файлы, которые были изменены в течение последних 24х часов.
+find -type f -mtime -1В каком каталоге находится команда find?
+./.viminfo
+./report_part1.txt
+./.lesshst
+./eltex-pg1-v8_part1.log
+./eltex-pg1-v8_part3_gt50M.log
+./D1/file.txt
+./eltex-pg1-v8_part3.log
+./.bash_history
+./eltex-pg1-v8_part2.log
+./.bashrc
+
+13.В каком каталоге находится команда find? 
+which find
+/usr/bin/find
+
+14.Определите характер содержимого файла find командой file.
+file $(which find)
+/usr/bin/find: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID[sha1]=5545a6c7162d325fbe5ffabcbfe4e5521b66ce70, for GNU/Linux 3.2.0, stripped
+исполняемый файл
+15.Установите, к какому типу относятся файлы /boot/initrd.img*.
+file /boot/initrd.img*
+/boot/initrd.img-6.1.0-27-amd64: ASCII cpio archive (SVR4 with no CRC)
+/boot/initrd.img-6.1.0-31-amd64: ASCII cpio archive (SVR4 with no CRC)
+/boot/initrd.img-6.1.0-32-amd64: ASCII cpio archive (SVR4 with no CRC)
+cpio-архив
