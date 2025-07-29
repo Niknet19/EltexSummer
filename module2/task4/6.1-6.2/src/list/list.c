@@ -123,7 +123,7 @@ void print_linked_list(DoublyLinkedList* list, void (*print_node)(Contact*)) {
     print_node(tmp->contact);
     tmp = tmp->next;
   }
-  // printf("HELLO!!");
+  printf("HELLO!!");
   printf("\n");
 }
 

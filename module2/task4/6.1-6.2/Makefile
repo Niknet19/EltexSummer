@@ -11,7 +11,7 @@ LIST_OBJ_PIC = $(LIST_SRC:.c=.pic.o)
 LIST_LIB_DYNAMIC = liblist.so
 LIBFLAGS_DYNAMIC = -L. -llist -Wl,-rpath,.
 
-MAIN_SRC = src/main.c src/rand.c src/contacts.c src/ui/console_input.c
+MAIN_SRC = src/main.c src/contacts.c src/ui/console_input.c
 MAIN_OBJ = $(MAIN_SRC:.c=.o)
 MAIN_OBJ_PIC = $(MAIN_SRC:.c=.pic.o)
 
