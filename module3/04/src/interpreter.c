@@ -113,12 +113,12 @@ void execute_pipeline(char* input) {
         close(fd);
       }
 
-      execute_command(parsed[i]);
-
       for (int j = 0; j < num_commands; j++) {
         close(pipes[j][0]);
         close(pipes[j][1]);
       }
+
+      execute_command(parsed[i]);
     }
   }
   for (int i = 0; i < num_commands - 1; i++) {
