@@ -10,17 +10,14 @@
 
 int is_int(const char *s, int *val) {
   char *endptr;
-  errno = 0;  // Clear errno before call
+  errno = 0;
   long num = strtol(s, &endptr, 10);
 
-  // Check for conversion errors
   if (errno == ERANGE) {
-    return 0;  // Out of range for long
+    return 0;
   }
-  // Check if the entire string was converted
   if (endptr == s || (*endptr != '\0' && !isspace((unsigned char)*endptr))) {
-    return 0;  // Not a valid integer or contains non-numeric characters after
-               // number
+    return 0;
   }
   *val = (int)num;
   return 1;
@@ -28,17 +25,14 @@ int is_int(const char *s, int *val) {
 
 int is_float(const char *s, double *val) {
   char *endptr;
-  errno = 0;  // Clear errno before call
+  errno = 0;
   double num = strtod(s, &endptr);
 
-  // Check for conversion errors
   if (errno == ERANGE) {
-    return 0;  // Out of range for double
+    return 0;
   }
-  // Check if the entire string was converted
   if (endptr == s || (*endptr != '\0' && !isspace((unsigned char)*endptr))) {
-    return 0;  // Not a valid float or contains non-numeric characters after
-               // number
+    return 0;
   }
   *val = num;
   return 1;
@@ -77,7 +71,6 @@ int main(int argc, char **argv) {
     print_numbers(argv, 1, mid);
     wait(NULL);
   } else if (pid == 0) {
-    // Дочерний процесс
     print_numbers(argv, mid + 1, argc - 1);
     exit(EXIT_SUCCESS);
   }
