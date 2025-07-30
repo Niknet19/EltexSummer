@@ -8,12 +8,12 @@ sig_atomic_t counter = 0;
 FILE *file = NULL;
 #define FILENAME "output.txt"
 
-void handle_signal(int signal) {
+void handle_signal(int sig) {
   const char *signal_name;
-  if (signal == SIGINT) {
+  if (sig == SIGINT) {
     signal_name = "SIGINT";
     counter++;
-  } else if (signal == SIGQUIT) {
+  } else if (sig == SIGQUIT) {
     signal_name = "SIGQUIT";
   } else
     return;
@@ -31,7 +31,8 @@ void handle_signal(int signal) {
 
   if (counter > 2) {
     fclose(file);
-    exit(EXIT_SUCCESS);
+    signal(SIGINT, SIG_DFL);
+    signal(SIGQUIT, SIG_DFL);
   }
 }
 
