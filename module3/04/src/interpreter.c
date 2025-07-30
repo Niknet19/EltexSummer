@@ -12,11 +12,9 @@ int parse_commands(const char* command, char parsed[MAX_COMMANDS][MAX_ARG_SIZE],
   char temp_command[strlen(command) + 1];
   strcpy(temp_command, command);
 
-  // Временные буферы для обработки
   char* commands[MAX_COMMANDS];
   char* saveptr;
 
-  // Разбиваем на команды по |
   char* token = strtok_r(temp_command, "|", &saveptr);
   while (token != NULL && cmd_count < MAX_COMMANDS) {
     commands[cmd_count] = token;
@@ -24,13 +22,11 @@ int parse_commands(const char* command, char parsed[MAX_COMMANDS][MAX_ARG_SIZE],
     token = strtok_r(NULL, "|", &saveptr);
   }
 
-  // Обрабатываем перенаправления и копируем в результат
   for (int i = 0; i < cmd_count; i++) {
     char* cmd = commands[i];
     char* in_pos = strstr(cmd, "<");
     char* out_pos = strstr(cmd, ">");
 
-    // Обработка ввода
     if (in_pos != NULL) {
       *in_pos = '\0';
       char* file = in_pos + 1;
@@ -43,7 +39,6 @@ int parse_commands(const char* command, char parsed[MAX_COMMANDS][MAX_ARG_SIZE],
       input_file[MAX_FILENAME_LEN - 1] = '\0';
     }
 
-    // Обработка вывода
     if (out_pos != NULL) {
       *out_pos = '\0';
       char* file = out_pos + 1;
@@ -56,7 +51,6 @@ int parse_commands(const char* command, char parsed[MAX_COMMANDS][MAX_ARG_SIZE],
       output_file[MAX_FILENAME_LEN - 1] = '\0';
     }
 
-    // Удаляем лишние пробелы и копируем команду
     char* start = cmd;
     while (*start == ' ') start++;
 
@@ -79,7 +73,7 @@ void execute_pipeline(char* input) {
 
   int pipes[MAX_PIPES][2];
   pid_t pids[MAX_PIPES];
-  for (int i = 0; i < num_commands - 1; i++) {  // Открывем pipe
+  for (int i = 0; i < num_commands - 1; i++) {
     if (pipe(pipes[i]) == -1) {
       perror("pipe");
       exit(EXIT_FAILURE);
