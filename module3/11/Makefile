@@ -1,6 +1,8 @@
 CC = gcc
 CFLAGS = -g -Wall -Wextra -Werror -I./src
 
+SHMFLAGS = -lrt -lpthread
+
 SRC = src/shared_mem_posix.c
 BUILD_DIR = build/
 TARGET = shmem
@@ -13,7 +15,7 @@ $(BUILD_DIR):
 build: $(BUILD_DIR) $(TARGET)
 
 $(TARGET):
-	$(CC) $(CFLAGS) $(SRC) -o $(BUILD_DIR)$(TARGET) 
+	$(CC) $(CFLAGS) $(SRC) -o $(BUILD_DIR)$(TARGET) $(SHMFLAGS)
 
 run:
 	./$(BUILD_DIR)$(TARGET)

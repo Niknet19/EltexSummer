@@ -1,7 +1,7 @@
 #include <shmem.h>
 
-void mutex_lock(int semid) { semop(semid, &lock, 1); }
-void mutex_unlock(int semid) { semop(semid, unlock, 2); }
+// void mutex_lock(int semid) { semop(semid, &lock, 1); }
+// void mutex_unlock(int semid) { semop(semid, unlock, 2); }
 
 void handle_signal(int sig) {
   if (sig == SIGINT) is_running = 0;
@@ -32,19 +32,19 @@ void process_data(SharedData *data) {
 
 void produce(SharedData *data) {
   while (is_running) {
-    mutex_lock(semid);
+    sem_wait(mutex);
     generate_data(data);
-    mutex_unlock(semid);
+    sem_post(mutex);
 
     while (1) {  // ждем ответа
-      mutex_lock(semid);
+      sem_wait(mutex);
       if (data->count == 0) {
         printf("Max: %d, Min: %d \n", data->max, data->min);
-        mutex_unlock(semid);
+        sem_post(mutex);
         processed_nums++;
         break;
       }
-      mutex_unlock(semid);
+      sem_post(mutex);
       usleep(1000);
     }
     sleep(1);
@@ -53,13 +53,13 @@ void produce(SharedData *data) {
 
 void consume(SharedData *data) {
   while (1) {
-    mutex_lock(semid);
+    sem_wait(mutex);
     if (data->done) {
-      mutex_unlock(semid);
+      sem_post(mutex);
       break;
     }
     process_data(data);
-    mutex_unlock(semid);
+    sem_post(mutex);
     usleep(1000);
   }
   munmap(data, SHM_SIZE);  // Отключаем сегмент в этом процессе
@@ -67,9 +67,9 @@ void consume(SharedData *data) {
 
 int main() {
   srand(time(NULL));
-  semid = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666);
-  if (semid == -1) {
-    perror("semget");
+  mutex = sem_open(SEM_NAME, O_CREAT | O_EXCL, 0666, 1);
+  if (mutex == SEM_FAILED) {
+    perror("sem_open");
     exit(EXIT_FAILURE);
   }
   shmid = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0666);
@@ -84,9 +84,9 @@ int main() {
     perror("ftruncate");
   }
 
-  if (semctl(semid, 0, SETVAL, 1) == -1) {
-    perror("semctl");
-  }
+  //   if (semctl(semid, 0, SETVAL, 1) == -1) {
+  //     perror("semctl");
+  //   }
 
   signal(SIGINT, handle_signal);
 
@@ -108,21 +108,25 @@ int main() {
   }
   produce(data);
 
-  mutex_lock(semid);
+  sem_wait(mutex);
   data->done = 1;
-  mutex_unlock(semid);
+  sem_post(mutex);
   wait(NULL);
 
   printf("\nОбработано %d строк\n", processed_nums);
   if (munmap(data, SHM_SIZE) == -1) {
     perror("munmap");
   }
-
   if (shm_unlink(SHM_NAME) == -1) {
     perror("shm_unlink");
   }
-  if (semctl(semid, 0, IPC_RMID) == -1) {
+  if (sem_close(mutex) == -1) {
     perror("semctl");
   }
+
+  if (sem_unlink(SEM_NAME) == -1) {
+    perror("semctl");
+  }
+
   return 0;
 }

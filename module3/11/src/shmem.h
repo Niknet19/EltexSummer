@@ -1,10 +1,10 @@
 #include <fcntl.h>
+#include <semaphore.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ipc.h>
 #include <sys/mman.h>
-#include <sys/sem.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
@@ -13,6 +13,7 @@
 #define MAX_NUMBERS 100
 #define SHM_SIZE sizeof(SharedData)
 #define SHM_NAME "/shared_mem"
+#define SEM_NAME "/my_mutex"
 typedef struct SharedData {
   int numbers[MAX_NUMBERS];
   int count;
@@ -21,12 +22,12 @@ typedef struct SharedData {
   int done;
 } SharedData;
 
-int semid;
+sem_t *mutex;
 int shmid;
 
 static int processed_nums = 0;
 
-struct sembuf lock = {0, -1, 0};
-struct sembuf unlock[2] = {{0, 0, 0}, {0, 1, 0}};
+// struct sembuf lock = {0, -1, 0};
+// struct sembuf unlock[2] = {{0, 0, 0}, {0, 1, 0}};
 
 static sig_atomic_t is_running = 1;
