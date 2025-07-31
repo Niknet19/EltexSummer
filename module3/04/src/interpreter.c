@@ -31,7 +31,9 @@ int parse_commands(const char* command, char parsed[MAX_COMMANDS][MAX_ARG_SIZE],
       *in_pos = '\0';
       char* file = in_pos + 1;
       while (*file == ' ') file++;
-
+      char* end = file + strlen(file) - 1;
+      while (end > file && *end == ' ') end--;
+      *(end + 1) = '\0';
       char* newline = strchr(file, '\n');
       if (newline) *newline = '\0';
 
@@ -43,7 +45,9 @@ int parse_commands(const char* command, char parsed[MAX_COMMANDS][MAX_ARG_SIZE],
       *out_pos = '\0';
       char* file = out_pos + 1;
       while (*file == ' ') file++;
-
+      char* end = file + strlen(file) - 1;
+      while (end > file && *end == ' ') end--;
+      *(end + 1) = '\0';
       char* newline = strchr(file, '\n');
       if (newline) *newline = '\0';
 
@@ -89,6 +93,7 @@ void execute_pipeline(char* input) {
       if (i == 0 && input_file[0] != '\0') {
         int fd = open(input_file, O_RDONLY);
         if (fd == -1) {
+          // fprintf(stderr, "%s\n", input_file);
           perror("open");
           exit(EXIT_FAILURE);
         }
