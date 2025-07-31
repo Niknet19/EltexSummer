@@ -5,7 +5,6 @@ void mutex_unlock(int semid) { semop(semid, unlock, 2); }
 
 void handle_signal(int sig) {
   if (sig == SIGINT) is_running = 0;
-  signal(SIGINT, SIG_DFL);
 }
 
 void generate_data(SharedData *data) {
