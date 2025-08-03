@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <signal.h>
@@ -6,11 +7,26 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#define OUTPUT_DIR "received_files"
+#define BUFFER_SIZE 1024
+#define FILENAME_LENGHT 128
+
+#define str1 "Enter 1 parameter\r\n"
+#define str2 "Enter 2 parameter\r\n"
+#define str3                                                               \
+  "\033[1;32m Поддерживаемые операции: +-/* file для передачи файлов или " \
+  "exit для "                                                              \
+  "выхода\033[0m\n"
+
 // функция обслуживания
 // подключившихся пользователей
 void dostuff(int);
+
+void recv_file(int sockfd);
 
 // количество активных пользователей
 int nclients = 0;
@@ -124,9 +140,7 @@ void dostuff(int sock) {
   char op;
   int a, b;  // переменные для myfunc
   char buff[20 * 1024];
-#define str1 "Enter 1 parameter\r\n"
-#define str2 "Enter 2 parameter\r\n"
-#define str3 "Поддерживаемые операции: +-/* или exit для выхода:\n"
+
   while (1) {
     write(sock, str3, strlen(str3));
     bytes_recv = read(sock, &buff[0], sizeof(buff));
@@ -134,6 +148,10 @@ void dostuff(int sock) {
     buff[bytes_recv] = '\0';
     if (strcmp(buff, "exit\n") == 0) {
       break;
+    }
+    if (strcmp(buff, "file\n") == 0) {
+      recv_file(sock);
+      continue;
     }
     op = (char)buff[0];
     printf("%c\n", op);
@@ -168,4 +186,46 @@ void dostuff(int sock) {
   printf("-disconnect\n");
   printusers();
   return;
+}
+
+void recv_file(int sockfd) {
+  char buffer[BUFFER_SIZE] = {0};
+  int file_fd;
+  ssize_t bytes_received, bytes_written;
+  size_t filename_len;
+  char filename[FILENAME_LENGHT];
+  off_t file_size;
+  off_t total_received = 0;
+
+  mkdir(OUTPUT_DIR, 0777);
+  printf("Принимаю файл ... \n");
+  recv(sockfd, &filename_len, sizeof(filename_len),
+       0);                               // Получаем размер имени файла
+  read(sockfd, filename, filename_len);  // Получаем имя файла
+  printf("Имя файла: %s\n", filename);
+  read(sockfd, &file_size, sizeof(file_size));
+  printf("Размер файла: %ld\n", file_size);
+  char filepath[512];
+  snprintf(filepath, sizeof(filepath), "%s/%s", OUTPUT_DIR, filename);
+
+  file_fd = open(filepath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+  if (file_fd == -1) {
+    perror("Ошибка при создании файла");
+    return;
+  }
+
+  while (total_received < file_size) {
+    bytes_received = read(sockfd, buffer, BUFFER_SIZE);
+    if (bytes_received <= 0) {
+      break;
+    }
+    bytes_written = write(file_fd, buffer, bytes_received);
+    if (bytes_written <= 0) {
+      perror("Ошибка при записи в файл");
+      break;
+    }
+    total_received += bytes_received;
+  }
+  printf("Файл %s (%ld байт) успешно получен и сохранен как %s\n", filename,
+         (long)file_size, filepath);
 }
