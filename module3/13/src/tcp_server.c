@@ -1,65 +1,11 @@
-#include <arpa/inet.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
+// server.c
+#include "tcp_server.h"
 
-#define OUTPUT_DIR "received_files"
-#define BUFFER_SIZE 1024
-#define FILENAME_LENGHT 128
-
-#define str1 "Enter 1 parameter\r\n"
-#define str2 "Enter 2 parameter\r\n"
-#define str3                                                               \
-  "\033[1;32m Поддерживаемые операции: +-/* file для передачи файлов или " \
-  "exit для "                                                              \
-  "выхода\033[0m\n"
-
-// функция обслуживания
-// подключившихся пользователей
-void dostuff(int);
-
-void recv_file(int sockfd);
-
-// количество активных пользователей
-int nclients = 0;
-int sockfd, newsockfd;
-// функция обработки ошибок
-void error(const char *msg) {
-  perror(msg);
-  if (nclients > 0) nclients--;
-  close(sockfd);
-  close(newsockfd);
-  exit(1);
-}
-
-// печать количества активных
-// пользователей
-void printusers() {
-  if (nclients) {
-    printf("%d user on-line\n", nclients);
-  } else {
-    printf("No User on line\n");
-  }
-}
-
-typedef struct func {
-  char symbol;
-  int (*ptr)(int, int);
-} func;
+int *nclients;
+int sockfd = -1;
 
 int add(int a, int b) { return a + b; }
-int sub(int a, int b) {
-  printf("minus\n");
-  return a - b;
-}
+int sub(int a, int b) { return a - b; }
 int mul(int a, int b) { return a * b; }
 int divide(int a, int b) { return a / b; }
 
@@ -70,162 +16,236 @@ func ops[] = {
     {'/', divide},
 };
 
+void error(const char *msg) {
+  perror(msg);
+  if (*nclients > 0) (*nclients)--;
+  if (sockfd != -1) close(sockfd);
+  shm_unlink(SHM_NAME);
+  exit(EXIT_FAILURE);
+}
+
+void printusers(void) {
+  printf(*nclients ? "%d user(s) on-line\n" : "No users online\n", *nclients);
+}
+
 void cleanup(int sig) {
   if (sig == SIGINT) {
-    close(sockfd);
-    close(newsockfd);
-    exit(EXIT_FAILURE);
+    printf("\nShutting down server...\n");
+    if (sockfd != -1) close(sockfd);
+    shm_unlink(SHM_NAME);
+    exit(EXIT_SUCCESS);
   }
 }
 
-// функция обработки данных
-
-int main(int argc, char *argv[]) {
-  // char buff[1024];        // Буфер для различных нужд
-  // дескрипторы сокетов
-  int portno;        // номер порта
-  int pid;           // id номер потока
-  socklen_t clilen;  // размер адреса клиента типа socklen_t
-  struct sockaddr_in serv_addr, cli_addr;  // структура сокета сервера и клиента
-  signal(SIGINT, cleanup);
-  printf("TCP SERVER DEMO\n");
-  // ошибка в случае если мы не указали порт
-  if (argc < 2) {
-    fprintf(stderr, "ERROR, no port provided\n");
-    exit(1);
-  }
-
-  // Шаг 1 - создание сокета
-  sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  if (sockfd < 0) error("ERROR opening socket");
-  // Шаг 2 - связывание сокета с локальным адресом
-  bzero((char *)&serv_addr, sizeof(serv_addr));
-  portno = atoi(argv[1]);
-  serv_addr.sin_family = AF_INET;
-  serv_addr.sin_addr.s_addr =
-      INADDR_ANY;  // сервер принимает подключения на все
-  serv_addr.sin_port = htons(portno);
-  if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-    error("ERROR on binding");
-  // Шаг 3 - ожидание подключений, размер очереди - 5
-  listen(sockfd, 5);
-  clilen = sizeof(cli_addr);
-  // Шаг 4 - извлекаем сообщение из очереди (цикл извлечения запросов на
-  // подключение)
-  while (1) {
-    newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-    if (newsockfd < 0) error("ERROR on accept");
-    nclients++;
-    // вывод сведений о клиенте
-    struct hostent *hst;
-    hst = gethostbyaddr((char *)&cli_addr.sin_addr, 4, AF_INET);
-    printf("+%s [%s] new connect!\n", (hst) ? hst->h_name : "Unknown host",
-           (char *)inet_ntoa(cli_addr.sin_addr));
-    printusers();
-    pid = fork();
-    if (pid < 0) error("ERROR on fork");
-    if (pid == 0) {
-      close(sockfd);
-      dostuff(newsockfd);
-      exit(0);
-    } else
-      close(newsockfd);
-  }
-  close(sockfd);
-  return 0;
-}
-
-void dostuff(int sock) {
-  int bytes_recv;  // размер принятого сообщения
+void handle_client(int sock) {
+  char buff[20 * 1024] = {0};
+  int bytes_recv;
   char op;
-  int a, b;  // переменные для myfunc
-  char buff[20 * 1024];
+  int a, b;
 
   while (1) {
-    write(sock, str3, strlen(str3));
-    bytes_recv = read(sock, &buff[0], sizeof(buff));
-    if (bytes_recv < 0) error("ERROR reading from socket");
-    buff[bytes_recv] = '\0';
-    if (strcmp(buff, "exit\n") == 0) {
+    if (write(sock, str3, strlen(str3)) < 0) {
+      perror("write failed");
       break;
     }
+    bytes_recv = read(sock, buff, sizeof(buff) - 1);
+    if (bytes_recv <= 0) break;
+    buff[bytes_recv] = '\0';
+
+    if (strcmp(buff, "exit\n") == 0) break;
     if (strcmp(buff, "file\n") == 0) {
       recv_file(sock);
       continue;
     }
-    op = (char)buff[0];
-    printf("%c\n", op);
-    // отправляем клиенту сообщение
-    write(sock, str1, sizeof(str1));
-    // обработка первого параметра
-    bytes_recv = read(sock, &buff[0], sizeof(buff));
-    if (bytes_recv < 0) error("ERROR reading from socket");
-    a = atoi(buff);  // преобразование первого параметра в int
-    // отправляем клиенту сообщение
-    write(sock, str2, sizeof(str2));
-    bytes_recv = read(sock, &buff[0], sizeof(buff));
-    if (bytes_recv < 0) error("ERROR reading from socket");
-    b = atoi(buff);  // преобразование второго параметра в int
-    // a = ops->symbol(a, b);  // вызов пользовательской функции
-    for (size_t i = 0; i < 4; i++) {
+
+    op = buff[0];
+    printf("Operation: %c\n", op);
+
+    if (write(sock, str1, strlen(str1)) < 0) {
+      perror("write failed");
+      break;
+    }
+    bytes_recv = read(sock, buff, sizeof(buff) - 1);
+    if (bytes_recv <= 0) break;
+    buff[bytes_recv] = '\0';
+    a = atoi(buff);
+
+    if (write(sock, str2, strlen(str2)) < 0) {
+      perror("write failed");
+      break;
+    }
+    bytes_recv = read(sock, buff, sizeof(buff) - 1);
+    if (bytes_recv <= 0) break;
+    buff[bytes_recv] = '\0';
+    b = atoi(buff);
+
+    for (size_t i = 0; i < sizeof(ops) / sizeof(ops[0]); i++) {
       if (ops[i].symbol == op) {
         a = ops[i].ptr(a, b);
-        printf("res : %d\n", a);
+        printf("Result: %d\n", a);
         break;
       }
     }
-    memset(buff, 0, sizeof(buff));
-    snprintf(buff, sizeof(buff), "%d\n",
-             a);                // преобразование результата в строку
-    buff[strlen(buff)] = '\n';  // добавление к сообщению символа конца строки
-    // отправляем клиенту результат
-    write(sock, buff, strlen(buff));
+
+    snprintf(buff, sizeof(buff), "%d\n", a);
+    if (write(sock, buff, strlen(buff)) < 0) {
+      perror("write failed");
+      break;
+    }
   }
 
-  nclients--;  // уменьшаем счетчик активных клиентов
-  printf("-disconnect\n");
+  close(sock);
+  (*nclients)--;
+  printf("Client disconnected. ");
   printusers();
-  return;
+  munmap(nclients, sizeof(int));
 }
 
 void recv_file(int sockfd) {
   char buffer[BUFFER_SIZE] = {0};
+  char filename[FILENAME_LENGTH] = {0};
+  char filepath[FILENAME_LENGTH + sizeof(OUTPUT_DIR) + 1] = {0};
   int file_fd;
-  ssize_t bytes_received, bytes_written;
+  ssize_t bytes_received;
   size_t filename_len;
-  char filename[FILENAME_LENGHT];
-  off_t file_size;
-  off_t total_received = 0;
+  off_t file_size, total_received = 0;
 
   mkdir(OUTPUT_DIR, 0777);
-  printf("Принимаю файл ... \n");
-  recv(sockfd, &filename_len, sizeof(filename_len),
-       0);                               // Получаем размер имени файла
-  read(sockfd, filename, filename_len);  // Получаем имя файла
-  printf("Имя файла: %s\n", filename);
-  read(sockfd, &file_size, sizeof(file_size));
-  printf("Размер файла: %ld\n", file_size);
-  char filepath[512];
+
+  if (read(sockfd, &filename_len, sizeof(filename_len)) <= 0) {
+    perror("Failed to receive filename length");
+    return;
+  }
+
+  if (read(sockfd, filename, filename_len) <= 0) {
+    perror("Failed to receive filename");
+    return;
+  }
+  filename[filename_len] = '\0';
+
+  if (read(sockfd, &file_size, sizeof(file_size)) <= 0) {
+    perror("Failed to receive file size");
+    return;
+  }
+
   snprintf(filepath, sizeof(filepath), "%s/%s", OUTPUT_DIR, filename);
 
   file_fd = open(filepath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (file_fd == -1) {
-    perror("Ошибка при создании файла");
+    perror("Failed to create file");
     return;
   }
 
   while (total_received < file_size) {
     bytes_received = read(sockfd, buffer, BUFFER_SIZE);
-    if (bytes_received <= 0) {
-      break;
-    }
-    bytes_written = write(file_fd, buffer, bytes_received);
-    if (bytes_written <= 0) {
-      perror("Ошибка при записи в файл");
+    if (bytes_received <= 0) break;
+
+    if (write(file_fd, buffer, bytes_received) != bytes_received) {
+      perror("Failed to write to file");
       break;
     }
     total_received += bytes_received;
   }
-  printf("Файл %s (%ld байт) успешно получен и сохранен как %s\n", filename,
-         (long)file_size, filepath);
+
+  close(file_fd);
+  printf("File %s (%ld bytes) received successfully\n", filename,
+         (long)file_size);
+}
+
+void setup_server_socket(int argc, char *argv[]) {
+  struct sockaddr_in serv_addr;
+  int portno;
+
+  if (argc < 2) {
+    fprintf(stderr, "Usage: %s port\n", argv[0]);
+    exit(EXIT_FAILURE);
+  }
+
+  portno = atoi(argv[1]);
+  sockfd = socket(AF_INET, SOCK_STREAM, 0);
+  if (sockfd < 0) error("ERROR opening socket");
+
+  int opt = 1;
+  if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+    error("setsockopt failed");
+  }
+
+  memset(&serv_addr, 0, sizeof(serv_addr));
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_addr.s_addr = INADDR_ANY;
+  serv_addr.sin_port = htons(portno);
+
+  if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    error("ERROR on binding");
+  }
+
+  if (listen(sockfd, MAX_CLIENTS) < 0) {
+    error("ERROR on listen");
+  }
+}
+
+void run_server(void) {
+  struct sockaddr_in cli_addr;
+  socklen_t clilen = sizeof(cli_addr);
+  int newsockfd, pid;
+
+  signal(SIGINT, cleanup);
+  signal(SIGCHLD, SIG_IGN);  // ??
+
+  printf("TCP SERVER DEMO\n");
+  printusers();
+
+  while (1) {
+    newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+    if (newsockfd < 0) {
+      perror("ERROR on accept");
+      continue;
+    }
+
+    (*nclients)++;
+    struct hostent *hst = gethostbyaddr((char *)&cli_addr.sin_addr, 4, AF_INET);
+    printf("+%s [%s] new connection!\n", hst ? hst->h_name : "Unknown host",
+           inet_ntoa(cli_addr.sin_addr));
+    printusers();
+
+    pid = fork();
+    if (pid < 0) {
+      perror("ERROR on fork");
+      close(newsockfd);
+      (*nclients)--;
+      continue;
+    }
+
+    if (pid == 0) {
+      close(sockfd);
+      handle_client(newsockfd);
+      exit(EXIT_SUCCESS);
+    } else {
+      close(newsockfd);
+    }
+  }
+}
+
+int main(int argc, char *argv[]) {
+  int shmid = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
+  if (shmid == -1) {
+    perror("shm_open");
+    exit(EXIT_FAILURE);
+  }
+  if (ftruncate(shmid, sizeof(int)) == -1) {
+    perror("ftruncate");
+  }
+  nclients = (int *)mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED,
+                         shmid, 0);
+  *nclients = 0;
+  setup_server_socket(argc, argv);
+  run_server();
+  if (munmap(nclients, sizeof(int)) == -1) {
+    perror("munmap");
+  }
+  if (shm_unlink(SHM_NAME) == -1) {
+    perror("shm_unlink");
+  }
+  close(sockfd);
+  return 0;
 }
