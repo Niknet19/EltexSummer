@@ -36,17 +36,22 @@ void process_packet(unsigned char *buffer, int size, FILE *dump_file,
   if (iph->protocol == IPPROTO_UDP) {
     struct udphdr *udph = (struct udphdr *)(buffer + (iph->ihl * 4));
     int dest_port = ntohs(udph->dest);
+    int src_port = ntohs(udph->source);
 
     if (dest_port == target_port) {
       unsigned char *data = buffer + (iph->ihl * 4) + sizeof(struct udphdr);
       int data_len = size - (iph->ihl * 4) - sizeof(struct udphdr);
-
       char src_ip[INET_ADDRSTRLEN];
+      char dest_ip[INET_ADDRSTRLEN];
       inet_ntop(AF_INET, &iph->saddr, src_ip, INET_ADDRSTRLEN);
+      inet_ntop(AF_INET, &iph->daddr, dest_ip, INET_ADDRSTRLEN);
       time_t now = time(NULL);
-      printf("[%s] Пакет от %s:%d на порт %d, размер: %d байт | Данные: %.*s\n",
-             ctime(&now), src_ip, ntohs(udph->source), dest_port, data_len,
-             data_len, data);
+      printf(
+          "[%s] Пакет src ip: %s  dest ip: %s src port: %d, dest port: %d "
+          "размер: %d "
+          "байт | "
+          "Данные: %s\n",
+          ctime(&now), src_ip, dest_ip, src_port, dest_port, data_len, data);
       fwrite(buffer, 1, size, dump_file);
       fflush(dump_file);
     }
