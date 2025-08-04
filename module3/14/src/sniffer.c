@@ -48,7 +48,6 @@ void process_packet(unsigned char *buffer, int size, FILE *dump_file,
              ctime(&now), src_ip, ntohs(udph->source), dest_port, data_len,
              data_len, data);
       fwrite(buffer, 1, size, dump_file);
-      // fwrite("\n", 1, 1, dump_file);
       fflush(dump_file);
     }
   }
