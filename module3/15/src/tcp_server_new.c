@@ -16,7 +16,6 @@ void error(const char *msg) {
   perror(msg);
   if (nclients > 0) (nclients)--;
   if (sockfd != -1) close(sockfd);
-  shm_unlink(SHM_NAME);
   exit(EXIT_FAILURE);
 }
 
@@ -37,7 +36,7 @@ void cleanup(int sig) {
 
 void init_client(int index, int new_sockfd) {
   clients[index].sockfd = new_sockfd;
-  clients[index].state = 0;
+  clients[index].state = WAITING_FOR_OP;
   memset(clients[index].buffer, 0, BUFFER_SIZE);
   if (write(new_sockfd, str3, strlen(str3)) < 0) {
     perror("write failed");
