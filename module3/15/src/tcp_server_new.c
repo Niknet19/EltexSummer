@@ -38,7 +38,6 @@ void cleanup(int sig) {
 void init_client(int index, int new_sockfd) {
   clients[index].sockfd = new_sockfd;
   clients[index].state = 0;
-  clients[index].buffer_pos = 0;
   memset(clients[index].buffer, 0, BUFFER_SIZE);
   if (write(new_sockfd, str3, strlen(str3)) < 0) {
     perror("write failed");
@@ -51,7 +50,6 @@ void close_client(int index) {
   close(clients[index].sockfd);
   clients[index].sockfd = 0;
   clients[index].state = WAITING_FOR_OP;
-  clients[index].buffer_pos = 0;
   (nclients)--;
   printf("Client disconnected. ");
   printusers();
@@ -183,7 +181,6 @@ void run_server(void) {
     }
 
     if (select(max_fd + 1, &read_fds, NULL, NULL, NULL) < 0) {
-      if (errno == EINTR) continue;
       error("select error");
     }
 

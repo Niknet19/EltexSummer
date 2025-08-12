@@ -35,12 +35,10 @@ enum state {
 
 typedef struct {
   int sockfd;
-  int state;  // 0: waiting for op, 1: waiting for first num, 2: waiting for
-              // second num
+  int state;
   char op;
   int first_num;
   char buffer[BUFFER_SIZE];
-  int buffer_pos;
 } client_t;
 
 int nclients;
