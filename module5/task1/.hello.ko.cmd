@@ -1,1 +1,0 @@
-savedcmd_/home/user/module5/task1/hello.ko := ld -r -m elf_x86_64 -z noexecstack --build-id=sha1  -T scripts/module.lds -o /home/user/module5/task1/hello.ko /home/user/module5/task1/hello.o /home/user/module5/task1/hello.mod.o

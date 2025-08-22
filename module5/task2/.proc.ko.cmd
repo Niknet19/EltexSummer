@@ -1,1 +1,0 @@
-savedcmd_/home/user/module5/task2/proc.ko := ld -r -m elf_x86_64 -z noexecstack --build-id=sha1  -T scripts/module.lds -o /home/user/module5/task2/proc.ko /home/user/module5/task2/proc.o /home/user/module5/task2/proc.mod.o
