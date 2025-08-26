@@ -74,7 +74,8 @@ static int device_open(struct inode *inode, struct file *file)
     if (atomic_cmpxchg(&already_open, CDEV_NOT_USED, CDEV_EXCLUSIVE_OPEN))
         return -EBUSY;
 
-    sprintf(msg, "I already told you %d times Hello world!\n", counter++);
+    // sprintf(msg, "I already told you %d times Hello world!\n", counter++);
+    counter++;
     try_module_get(THIS_MODULE);
     return SUCCESS;
 }
@@ -115,7 +116,7 @@ static ssize_t device_read(struct file *filp,   /* see include/linux/fs.h   */
          * put_user which copies data from the kernel data segment to
          * the user data segment.
          */
-        put_user(*(msg_ptr++), buffer++); // TODO write user
+        put_user(*(msg_ptr++), buffer++);
         length--;
         bytes_read++;
     }
@@ -128,8 +129,28 @@ static ssize_t device_read(struct file *filp,   /* see include/linux/fs.h   */
 static ssize_t device_write(struct file *filp, const char __user *buff,
                             size_t len, loff_t *off)
 {
-    pr_alert("Sorry, this operation is not supported.\n");
-    return -EINVAL;
+    int bytes_written = 0;
+    char local_buf[BUF_LEN];
+
+    if (len > BUF_LEN - 1)
+    {
+        len = BUF_LEN - 1;
+    }
+
+    if (copy_from_user(local_buf, buff, len))
+    {
+        return -EFAULT;
+    }
+
+    local_buf[len] = '\0';
+
+    strncpy(msg, local_buf, BUF_LEN);
+    msg[BUF_LEN - 1] = '\0';
+
+    bytes_written = len;
+
+    pr_info("Received %zd bytes: %s\n", len, local_buf);
+    return bytes_written;
 }
 
 module_init(chardev_init);
