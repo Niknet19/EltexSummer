@@ -6,7 +6,7 @@
 
 #define NETLINK_USER 31
 
-struct sock *nl_sk = NULL;
+static struct sock *nl_sk = NULL;
 
 static void hello_nl_recv_msg(struct sk_buff *skb)
 {
