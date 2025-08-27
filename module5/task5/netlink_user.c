@@ -39,7 +39,8 @@ void main()
 
     strcpy(NLMSG_DATA(nlh), "Hello from user");
 
-    iov.iov_base = (void *)nlh;
+    // iov.iov_base = (void *)nlh;
+    iov.iov_base = nlh;
     iov.iov_len = nlh->nlmsg_len;
     msg.msg_name = (void *)&dest_addr;
     msg.msg_namelen = sizeof(dest_addr);
@@ -51,6 +52,6 @@ void main()
     printf("Waiting for message from kernel\n");
 
     recvmsg(sock_fd, &msg, 0);
-    printf("Received message payload: %s\n", NLMSG_DATA(nlh));
+    printf("Received message payload: %s\n", (char *)NLMSG_DATA(nlh));
     close(sock_fd);
 }
